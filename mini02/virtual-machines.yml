@@ -1,0 +1,8 @@
+---
+virtual_machines:
+    - dhcp
+    - OpenAFS
+    - OpenAFS2
+    - backup.rubyninja.org
+    - chef.rubyninja.org
+

@@ -1,0 +1,15 @@
+---
+virtual_machines:
+    - bashninja.org
+    - rubyninja.net
+    - Debian
+    - ubuntu
+    - Windows_Server_2003
+    - Solaris
+    - FreeBSD
+    - FreeBSD_9
+    - OpenBSD
+    - login.rubyninja.org
+    - email
+    - mysql
+
