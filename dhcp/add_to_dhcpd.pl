@@ -54,7 +54,7 @@ if ($options{help}) {
 
 sub main {
 	my $config = Net::ISC::DHCPd::Config->new(file => $DHCP_CONF_FILE);
-        my $new_host_ip = get_ip();
+    my $new_host_ip = get_ip();
 
 	# parse the config
 	$config->parse;

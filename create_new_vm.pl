@@ -52,7 +52,7 @@ if ($options{help}) {
 	clean_up() unless create_hd();
 	clean_up() unless configure_hd();
 	push_to_dhcp();
-    add_to_configuartion();
+    add_to_configuration();
 
 } else {
 	usage();
@@ -242,8 +242,8 @@ sub clean_up {
 	}
 }
 
-sub add_to_configuartion {
-    open(my $fh, '>>', $VM_CONFIG) or die "Cannot open > $VM_CONFIG: $!";
+sub add_to_configuration {
+    open(my $fh, '>>', $VM_CONFIG) or die "Cannot open $VM_CONFIG: $!";
     print {$fh} "    - $options{name}\n";
 }
 

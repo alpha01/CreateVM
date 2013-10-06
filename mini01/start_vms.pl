@@ -1,5 +1,4 @@
 use YAML::XS qw/LoadFile/;
-use Data::Dumper;
 
 use strict;
 
