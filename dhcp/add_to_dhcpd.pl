@@ -54,6 +54,7 @@ if ($options{help}) {
 
 sub main {
 	my $config = Net::ISC::DHCPd::Config->new(file => $DHCP_CONF_FILE);
+        my $new_host_ip = get_ip();
 
 	# parse the config
 	$config->parse;
@@ -67,7 +68,7 @@ sub main {
 	$config->add_host({
 		name => $options{name},
 		keyvalue => [{ name => 'hardware', value => "ethernet $options{hardware}" },
-			 	{ name => 'fixed-address', value => get_ip() }],
+			 	{ name => 'fixed-address', value => $new_host_ip }],
 		#filename => [{ file => 'pxelinux.0' }],
 		#options => [{name => 'namehere', value => 'valuehere'}],
 	});
@@ -89,6 +90,9 @@ sub main {
 		print "dhcpd restart failed!\n";
 	} else {
 		print "Successfully restarted dhcpd.\n\n";
+                print "Add the following entries to DNS\n
+                \t\t$options{name}\tIN\tA\t$new_host_ip\n
+                \t\t" . ((split(/\./, $new_host_ip))[-1] . ".1.168.192.in-addr.arpa.\tIN\tPTR\t$options{name}.rubyninja.org.\n\n"); # Doing this shit manually for now
 	}
 
 	print Dumper($config) if $DEBUG;
