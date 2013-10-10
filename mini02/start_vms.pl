@@ -1,3 +1,5 @@
+#!/usr/bin/perl
+
 use YAML::XS qw/LoadFile/;
 
 use strict;

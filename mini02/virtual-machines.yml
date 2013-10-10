@@ -5,4 +5,3 @@ virtual_machines:
     - OpenAFS2
     - backup.rubyninja.org
     - chef.rubyninja.org
-

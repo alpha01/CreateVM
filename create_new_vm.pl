@@ -148,7 +148,7 @@ sub check_available_memory {
 
 
 sub createvm {
-	print "Creating virtual machine... \n\tName: $options{name}\n\tMemory: $options{memory}\n\tDisk Size: $options{disk}\n\tOS Type: $options{ostype}\n\n\n";
+	print "Creating virtual machine... \n\tName: $options{name}\n\tMemory: $options{memory}MB\n\tDisk Size: $options{disk}MB\n\tOS Type: $options{ostype}\n\n\n";
 
 	system("VBoxManage createvm --name '$options{name}' --ostype $options{ostype} --register 2>/dev/null");
 	if ($? != 0) {
@@ -206,7 +206,7 @@ sub configure_hd {
 
 
 sub modifyvm {
-	system("VBoxManage modifyvm '$options{name}' --memory $options{memory} --acpi on --boot1 dvd --nic1 bridged --bridgeadapter1 eth0 2>/dev/null");
+	system("VBoxManage modifyvm '$options{name}' --memory $options{memory} --acpi on --boot1 net --nic1 bridged --bridgeadapter1 eth0 2>/dev/null");
 	if ($? != 0) {
 		print "Failed to modifyvm\n";
 		return 0;
@@ -245,5 +245,6 @@ sub clean_up {
 sub add_to_configuration {
     open(my $fh, '>>', $VM_CONFIG) or die "Cannot open $VM_CONFIG: $!";
     print {$fh} "    - $options{name}\n";
+    close($fh);
 }
 

@@ -33,7 +33,7 @@ sub dhcp {
 sub add_to_dhcp {
 	my ($self) = @_;
 	print "\n\n\nAdding machine: " . $self->name . ' to DHCP Server: ' . $self->dhcp . "\n";
-	system('ssh root@' . $self->dhcp . ' "perl add_to_dhcpd.pl --name ' . $self->name . ' --hardware ' . $self->hardware . '"');
+	system('ssh -oConnectTimeout=5 root@' . $self->dhcp . ' "perl add_to_dhcpd.pl --name ' . $self->name . ' --hardware ' . $self->hardware . '"');
 }
 
 

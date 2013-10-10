@@ -12,4 +12,3 @@ virtual_machines:
     - login.rubyninja.org
     - email
     - mysql
-
