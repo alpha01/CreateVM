@@ -23,7 +23,7 @@ if ($options{help}) {
     #print Dumper($new_vm);
 
     my $push_to_dhcp = VirtualBox::AddToDHCP->new(name => $new_vm->{name}, hardware => $new_vm->{hardware}, dhcp => '192.168.1.2');
-    $push_to_dhcp->add_to_dhcp('-oConnectTimeout=5 -p 1088');
+    $push_to_dhcp->add_to_dhcp('-oConnectTimeout=5');
     #print Dumper($push_to_dhcp);
 
     VirtualBox::AddToConfig::config(name => $new_vm->{name});
