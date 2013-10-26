@@ -77,7 +77,7 @@ sub _vboxmanage_exec {
 
     system("$self->{_vboxmanage_bin} $cmd");
     if ($? != 0) {
-        if ($cmd eq 'createhd' || $cmd eq 'configurehd' || $cmd eq 'attachdh' || $cmd eq 'modifyvm') {
+        if ($cmd =~ /(createhd|configurehd|attachdh|modifyvm)/) {
             print "Cleaning up failed VM installation/configuration...\n\n";
             system("$self->{_vboxmanage_bin} unregistervm '$self->{name}' --delete");
         }
