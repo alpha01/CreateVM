@@ -1,46 +1,30 @@
 package VirtualBox::CreateVM;
 
+
+use File::Basename;
+use lib dirname(__FILE__) . '../';
+use CreateVM;
+
+
 use strict;
-use POSIX;
-use Carp;
 
+our @ISA = qw(CreateVM);
 
-
-sub new {
-    my $class = shift;
-    my $self = {@_};
- 
-    bless ($self, $class);
-
-    $self->_resource_checks;
-    $self->_vboxmanage_bin;
-    $self->_ostype;
-
-    return $self;
-}
-
-
-sub virtual_machines_location {
-    my ( $self, $virtual_machines_location ) = @_;
-    $self->{virtual_machines_location} = $virtual_machines_location if defined($virtual_machines_location);
-    return $self->{virtual_machines_location};
-}
 
 
 sub create_vm {
     my $self = shift;
 
-    print "Creating virtual machine... \n\tName: $self->{name}\n\tMemory: $self->{memory}MB\n\tDisk Size: $self->{disk}MB\n\tOS Type: $self->{ostype}\n\n\n";
+    $self->SUPER::create_vm;
+    $self->_hypervisor_bin('VBoxManage');
 
     my @commands = (
             { createvm => "createvm --name '$self->{name}' --ostype $self->{ostype} --register 2>/dev/null" },
-            { createhd => "createhd --filename '$self->{name}' --size $self->{disk} 2>/dev/null" },
+            { createhd => "createhd --filename '$self->{name}'.vdi --size $self->{disk} 2>/dev/null" },
             { configurehd => "storagectl '$self->{name}' --name 'SATA Controller' --add sata --controller IntelAhci --bootable on 2>/dev/null"},
             { attachdh => "storageattach '$self->{name}' --storagectl 'SATA Controller' --port 0 --device 0 --type hdd --medium $self->{name}.vdi" },
             { modifyvm => "modifyvm '$self->{name}' --memory $self->{memory} --acpi on --boot1 net --nic1 bridged --bridgeadapter1 eth0 2>/dev/null" }
     );
-
-    chdir("$self->{virtual_machines_location}/$self->{name}");
 
     for (my $i=0; $i < scalar(@commands); $i++) {                
         foreach my $vbox_job (keys $commands[$i]) {
@@ -51,70 +35,25 @@ sub create_vm {
     $self->hardware;
 }
 
-sub hardware {
-    my $self = shift;
-    chomp(my $dotless_mac_address = `$self->{_vboxmanage_bin} showvminfo '$self->{name}'|grep MAC|awk '{print \$4}'`); 
-    chop($dotless_mac_address); #gets rid of trailing comman (,)
-
-    $self->{hardware} = join(':', grep {length > 0} split(/(..)/, $dotless_mac_address));
-    return $self->{hardware};
-}
-
-sub _vboxmanage_bin {
-    my $self = shift;
-    chomp(my $_vboxmanage_bin = `which VBoxManage`);
-
-    if ($_vboxmanage_bin eq "") {
-        croak "VBoxManage was not found in this system.\n" 
-    } else {
-        $self->{_vboxmanage_bin} = $_vboxmanage_bin;
-        return $self->{_vboxmanage_bin};
-    }
-}
 
 sub _vboxmanage_exec {
     my ( $self, $cmd, $err_msg ) = @_;
 
-    system("$self->{_vboxmanage_bin} $cmd");
+    system("$self->{_hypervisor_bin} $cmd");
     if ($? != 0) {
         if ($cmd =~ /(createhd|configurehd|attachdh|modifyvm)/) {
             print "Cleaning up failed VM installation/configuration...\n\n";
-            system("$self->{_vboxmanage_bin} unregistervm '$self->{name}' --delete");
+            system("$self->{_hypervisor_bin} unregistervm '$self->{name}' --delete");
         }
-        croak "$err_msg\n\t$self->{_vboxmanage_bin} $cmd\n";
+        croak "$err_msg\n\t$self->{_hypervisor_bin} $cmd\n";
     }
 }
 
-
-sub _resource_checks {
-    my $self = shift;
-
-    # checking available disk space    
-    chomp(my $available_disk_space = `df -m |awk '\$NF~/^\\/\$/ {print \$4}'`); # /
-
-    if ($self->{disk} >= $available_disk_space) {
-        croak "Not enough space to create the virtual machine.\n\tAvailable: $available_disk_space MB\n";
-
-    } elsif ($available_disk_space - $self->{disk} <= 2000) {
-        croak "Warning: host machine is going to be critically low in disk space!!\n";
-
-    }
-
-    # Checking available memory
-    chomp(my $available_memory = `free -m | grep buffers/cache |awk '{print \$NF}'`);
-    
-    if ($self->{memory} > $available_memory) {
-        croak "Not enough memory available.\n\tFree memory: $available_memory MB\n";
-
-    } elsif ($available_memory - $self->{memory} <= 512) {
-        croak "Warning: If VM is created, available memory for host machine is going to be criticallly low!!\n\tFree memory: $available_memory MB\n";
-    }
-
-}
 
 sub _ostype {
     my $self = shift;
-    chomp(my @ostype_list = `$self->{_vboxmanage_bin} list ostypes|grep ID|awk '{print \$NF}'`);
+
+    chomp(my @ostype_list = `$self->{_hypervisor_bin} list ostypes|grep ID|awk '{print \$NF}'`);
     
     my $os_start = 0;
     my $output_ostype_string;
@@ -159,6 +98,12 @@ sub _ostype {
 		}
 	}
 }
+
+
+sub prompt {
+    my $self = shift;
+}
+
 
 1;
 
