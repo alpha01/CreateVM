@@ -1,5 +1,5 @@
 virtualbox
 ==========
 
-Tony's home VirtualBox infrastructure.
+Tony's home KVM and VirtualBox infrastructure.
 Opted not to use Vagrant and overly complicated things, good stuff.

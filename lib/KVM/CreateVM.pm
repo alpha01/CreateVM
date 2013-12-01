@@ -28,12 +28,12 @@ sub create_vm {
     
     my $size_in_gb = $self->{disk} / 1000; #Need to convert MB to GB
  
-    system("$self->{_hypervisor_bin} --name $self->{name} --ram $self->{memory} --disk path=$self->{_virtual_machines_location}/$self->{name}.img,size=$size_in_gb -w bridge=br0,mac=$self->{hardware} --pxe --noautoconsole --graphics keymap=en-us");
+    system("$self->{_hypervisor_bin} --name $self->{name} --ram $self->{memory} --disk path=$self->{_virtual_machines_location}/$self->{name}.img,size=$size_in_gb -w bridge=br0,mac=$self->{hardware} --pxe --noautoconsole --graphics keymap=en-us --autostart");
 
     if ($? != 0) {
         croak "Failed to create KVM guest!\n";
     } else {
-        print "Successfully create $self->{name}\n";
+        print "Successfully created $self->{name}\n";
         return 1;
     }
 
