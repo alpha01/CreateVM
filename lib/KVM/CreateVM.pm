@@ -6,34 +6,29 @@ use lib dirname(__FILE__) . '../';
 use CreateVM;
 
 
+use Carp;
 use strict;
 
 our @ISA = qw(CreateVM);
 
 
 
-sub _virtual_machines_location {
-    my $self = shift;
-    
-    $self->{_virtual_machines_location} = "/var/lib/libvirt/images";
-    return $self->{_virtual_machines_location};
-
-}
-
 sub create_vm {
-    my $self = shift;
+    my ($self, $vm_add_args) = @_;
 
-    $self->SUPER::create_vm;
+    croak "ERROR: KVM guests can only be created in a GNU/Linux system!\n" if ($self->{_hypervisor_ostype} ne 'linux');
+
+    $self->SUPER::create_vm($vm_add_args);
     $self->_hypervisor_bin('virt-install');
     
     my $size_in_gb = $self->{disk} / 1000; #Need to convert MB to GB
  
-    system("$self->{_hypervisor_bin} --name $self->{name} --ram $self->{memory} --disk path=$self->{_virtual_machines_location}/$self->{name}.img,size=$size_in_gb -w bridge=br0,mac=$self->{hardware} --pxe --noautoconsole --graphics keymap=en-us --autostart");
-
+    system("$self->{_hypervisor_bin} --name $self->{name} --ram $self->{memory} --disk path=$self->{virtual_machines_location}/$self->{name}.img,size=$size_in_gb $self->{vm_args}");
+    
     if ($? != 0) {
         croak "Failed to create KVM guest!\n";
     } else {
-        print "Successfully created $self->{name}\n";
+        print "Successfully created KVM guest $self->{name}\n";
         return 1;
     }
 
@@ -97,7 +92,7 @@ Creates a new C<KVM::CreateVM> object.
 
     Steps performed:
     # Creates KVM guest VM. 
-    /usr/bin/virt-install --name VM-name --ram <ram> --disk path=/var/lib/libvirt/images/<VM-name>.img,size=<disk-size> -w bridge=br0,mac=<random-generated-mac> --pxe --noautoconsole --graphics keymap=en-us
+    virt-install --name <VM-name> --ram <ram> --disk path=/var/lib/libvirt/images/<VM-name>.img,size=<disk-size> -w bridge=br0,mac=<random-generated-mac> <additional options>
 
 =back
 

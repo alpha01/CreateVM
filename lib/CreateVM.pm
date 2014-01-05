@@ -1,9 +1,9 @@
 package CreateVM;
 
-use strict;
+
 use POSIX;
 use Carp;
-
+use strict;
 
 
 sub new {
@@ -12,46 +12,82 @@ sub new {
  
     bless ($self, $class);
 
+    if ($< != 0) {
+        print "Need root permission.\n";
+        exit;
+    }
+
     return $self;
 }
 
 
 sub hypervisor_type {
     my ( $self, $hypervisor_type ) = @_;
+    
+    $self->_hypervisor_ostype;
 
-    if ( ($hypervisor_type eq "kvm") || ($hypervisor_type eq "virtualbox") ) {
+    if ( ($hypervisor_type =~ /^(kvm|xen|virtualbox|solaris_zone)$/)) {
         $self->{hypervisor_type} = $hypervisor_type;
-
-    } elsif ($hypervisor_type eq "") {
-        $self->{hypervisor_type} = "virtualbox" #VirtualBox by default
 
     } else {
         croak "Unsupported hypervisor type specified: '$hypervisor_type'\n";
     }
 
-    $self->_virtual_machines_location;
+    $self->virtual_machines_location;
 
     return $self->{hypervisor_type};
 
 }
 
-sub _virtual_machines_location {
+
+sub _hypervisor_ostype {
     my $self = shift;
     
-    $self->{_virtual_machines_location} = "$ENV{HOME}/VirtualBox VMs";
-    return $self->{_virtual_machines_location};
+    chomp(my $check_host_os = `uname`);
+
+    if ($check_host_os eq 'Linux') {
+        $self->{_hypervisor_ostype} = 'linux';
+    } elsif ($check_host_os eq 'SunOS') {
+        $self->{_hypervisor_ostype} = 'solaris';
+    } else {
+        croak "Your OS is not supported!";
+    }
+    
+    return $self->{_hypervisor_ostype};
+}
+
+
+sub virtual_machines_location {
+    my $self = shift;
+    
+    if ($self->{hypervisor_type} eq "virtualbox") {
+        $self->{virtual_machines_location} = "$ENV{HOME}/VirtualBox VMs";
+
+    } elsif ($self->{hypervisor_type} eq "kvm") {
+        $self->{virtual_machines_location} = "/var/lib/libvirt/images";
+
+    } elsif ($self->{hypervisor_type} eq "solaris_zone") {
+        $self->{virtual_machines_location} = "rpool/zones/$self->{name}";
+
+    } elsif ($self->{hypervisor_type} eq "xen") {
+        $self->{virtual_machines_location} = "LOCATION-OF-XEN-dir";
+    }
+
+    return $self->{virtual_machines_location};
 
 }
 
 
 sub create_vm {
-    my $self = shift;
+    my ($self, $vm_args) = @_;
 
-    $self->_virtual_machines_location;
+    $self->{vm_args} = defined($vm_args) ? $vm_args : '';
+
+    $self->virtual_machines_location;
     $self->hardware;
     $self->_resource_checks;
     
-    chdir("$self->{_virtual_machines_location}/$self->{name}");
+    chdir("$self->{virtual_machines_location}/$self->{name}");
 
     print "Creating virtual machine... \n\tName: $self->{name}\n\tMemory: $self->{memory}MB\n\tDisk Size: $self->{disk}MB\n\t";
     ($self->{ostype}) ? print "OS Type: $self->{ostype}\n\n\n" : print "\n\n\n";
@@ -74,22 +110,6 @@ sub hardware {
     }
 
     return $self->{hardware};
-}
-
-
-sub _hypervisor_bin {
-    my ( $self, $_hypervisor_bin) = @_;
-    
-    chomp(my $check_bin = `which $_hypervisor_bin`);
-    
-    if ($check_bin eq "") {
-        croak "$_hypervisor_bin was not found in this system.\n";
-    } else {
-        $self->{_hypervisor_bin} = $check_bin;
-    }
-
-    return $self->{_hypervisor_bin};
-
 }
 
 
@@ -116,6 +136,24 @@ sub _resource_checks {
     } elsif ($available_memory - $self->{memory} <= 512) {
         croak "Warning: If VM is created, available memory for host machine is going to be criticallly low!!\n\tFree memory: $available_memory MB\n";
     }
+
+}
+
+
+## These will get called by child clases ##
+
+sub _hypervisor_bin {
+    my ( $self, $_hypervisor_bin) = @_;
+    
+    chomp(my $check_bin = `which $_hypervisor_bin`);
+    
+    if ($check_bin eq "") {
+        croak "$_hypervisor_bin was not found in this system.\n";
+    } else {
+        $self->{_hypervisor_bin} = $check_bin;
+    }
+
+    return $self->{_hypervisor_bin};
 
 }
 
