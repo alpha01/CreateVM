@@ -14,7 +14,7 @@ sub new {
 
     if ($< != 0) {
         print "Need root permission.\n";
-        exit;
+        exit 1;
     }
 
     return $self;
@@ -116,26 +116,38 @@ sub hardware {
 sub _resource_checks {
     my $self = shift;
 
-    # checking available disk space    
-    chomp(my $available_disk_space = `df -m |awk '\$NF~/^\\/\$/ {print \$4}'`); # /
+    my ($available_disk_space, $available_memory); 
 
-    if ($self->{disk} >= $available_disk_space) {
-        croak "Not enough space to create the virtual machine.\n\tAvailable: $available_disk_space MB\n";
+    if ($self->{_hypervisor_ostype} eq 'linux') {
+        # checking available disk space    
+        chomp($available_disk_space = `df -m |awk '\$NF~/^\\/\$/ {print \$4}'`); # /
 
-    } elsif ($available_disk_space - $self->{disk} <= 2000) {
-        croak "Warning: host machine is going to be critically low in disk space!!\n";
+        if ($self->{disk} >= $available_disk_space) {
+            croak "Not enough space to create the virtual machine.\n\tAvailable: $available_disk_space MB\n";
 
-    }
+        } elsif ($available_disk_space - $self->{disk} <= 2000) {
+            croak "Warning: host machine is going to be critically low in disk space!!\n";
 
-    # Checking available memory
-    chomp(my $available_memory = `free -m | grep buffers/cache |awk '{print \$NF}'`);
+        }
+
+        # Checking available memory
+        chomp($available_memory = `free -m | grep buffers/cache |awk '{print \$NF}'`);
     
-    if ($self->{memory} > $available_memory) {
-        croak "Not enough memory available.\n\tFree memory: $available_memory MB\n";
+        if ($self->{memory} > $available_memory) {
+            croak "Not enough memory available.\n\tFree memory: $available_memory MB\n";
 
-    } elsif ($available_memory - $self->{memory} <= 512) {
-        croak "Warning: If VM is created, available memory for host machine is going to be criticallly low!!\n\tFree memory: $available_memory MB\n";
+        } elsif ($available_memory - $self->{memory} <= 512) {
+            croak "Warning: If VM is created, available memory for host machine is going to be criticallly low!!\n\tFree memory: $available_memory MB\n";
+        }
     }
+
+    if ($self->{_hypervisor_ostype} eq 'solaris') {
+        chomp(my $available_memory_in_kb = `vmstat |tail -1 |awk '{print \$5}'`);
+        $available_memory = $available_memory_in_kb / 1000;
+
+        # Disk usage is checked via Solaris::CreateZone::create_vm
+    }
+
 
 }
 

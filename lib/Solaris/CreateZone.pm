@@ -12,50 +12,97 @@ our @ISA = qw(CreateVM);
 
 
 
+sub pool {
+    my ($self, $pool) = @_;
+
+    my $zfs_pool_check;
+
+    if (defined($pool)) {
+        croak "Invalid ZFS storage pool\n" if ($pool =~ /^\d+$/); 
+        $zfs_pool_check = $pool;
+    } elsif ($self->{pool}) {
+        $zfs_pool_check = $self->{pool};
+    }
+
+    if ($zfs_pool_check) {
+        print "checking zpool ($zfs_pool_check)\n";
+        my $zfs_pool_check_output = `zpool list $zfs_pool_check`;
+        if ($? != 0) {
+            croak "ZFS storage pool not found!!\n\n";
+        } else {
+            $self->{pool} = $zfs_pool_check;
+        }
+ 
+    } else {
+        $self->{pool} = "rpool";
+    }
+    
+    return $self->{pool};
+}
+
+
 sub virtual_machines_location {
     my ($self, $zfs_dataset) = @_;
 
-    $self->{virtual_machines_location} = defined($zfs_dataset) ? $zfs_dataset : "rpool/zones/$self->{name}";
+    my $zfs_dataset_check;
+
+    if (defined($zfs_dataset)) {
+        $zfs_dataset_check = `zfs list $zfs_dataset 2>/dev/null`;
+        if ($? !=0 ) {
+            croak "Custom location requires its own dataset, ZFS dataset: $zfs_dataset not found in your system\n\n";
+        } else {
+            $self->{virtual_machines_location} = "$self->{pool}/$zfs_dataset";
+        }
+    } else {
+        $self->{virtual_machines_location} = "$self->{pool}/zones/$self->{name}";
+    }
+
     return $self->{virtual_machines_location};
 
 }
+
 
 sub create_vm {
     my $self = shift;
 
     croak "ERROR: Zones can only be created in a Solaris system!\n" if ($self->{_hypervisor_ostype} ne 'solaris');
 
+    $self->pool;
     $self->SUPER::create_vm;
     $self->_hypervisor_bin('zonecfg');
 
-    if ($self->{virtual_machines_location} ne "rpool/zones/$self->{name}") {
-        system("zfs create -o mountpoint=/$self->{name} $self->{virtual_machines_location}");
-    } else {
-        system("zfs create -o mountpoint=/$self->{name} rpool/zones/$self->{name}");
-    }
-
-    if ($? != 0) {
-        print "Failed to create ZFS dataset!!!\n\n"; exit;
-    } else {
-        print "Successfully create ZFS dataset.\n";
-        system("zfs list $self->{virtual_machines_location}");
-    }
+    #check pool disk usage here
     
-    system("$self->{_hypervisor_bin} -z $self->{name} 'create; set zonepath=/$self->{name}; set autoboot=true; add capped-memory; set physical=$self->{memory}M; end'");
+    #if ($self->{virtual_machines_location} ne "rpool/zones/$self->{name}") {
+    #    mkdir('rpool/zones');
+    #    system("zfs create -o mountpoint=/$self->{name} $self->{virtual_machines_location}");
+    #} else {
+    #    system("zfs create -o mountpoint=/$self->{name} rpool/zones/$self->{name}");
+    #}
 
-    if ($? != 0) {
-        print "Failed to create Solaris zone!!!\n"; exit;
-    } else {
-        print "Successfully zone $self->{name}\n";
-    }
+    #if ($? != 0) {
+    #    print "Failed to create ZFS dataset!!!\n\n";
+    #    exit 1;
+    #} else {
+    #    print "Successfully create ZFS dataset.\n";
+    #    system("zfs list $self->{virtual_machines_location}");
+    #}
+    
+    #system("$self->{_hypervisor_bin} -z $self->{name} 'create; set zonepath=/$self->{name}; set autoboot=true; add capped-memory; set physical=$self->{memory}M; end'");
+    #if ($? != 0) {
+    #    print "Failed to create Solaris zone!!!\n";
+    #    exit 1;
+    #} else {
+    #    print "Successfully zone $self->{name}\n";
+    #}
 
-    chomp(my $zoneadm = `which zoneadm`);
+    #chomp(my $zoneadm = `which zoneadm`);
 
-    print "Installing Solaris zone $self->{name}. This may take a few minutes to complete.\n\n\n";
-    system("$zoneadm -z $self->{name} install");
+    #print "Installing Solaris zone $self->{name}. This may take a few minutes to complete.\n\n\n";
+    #system("$zoneadm -z $self->{name} install");
 
-    print "\n\nStaring Solaris zone $self->{name}\n";
-    system("$zoneadm -z $self->{name} boot");
+    #print "\n\nStaring Solaris zone $self->{name}\n";
+    #system("$zoneadm -z $self->{name} boot");
 
 }
 
@@ -101,7 +148,7 @@ Creates a new C<Solaris::CreateZone> object.
 
 =item virtual_machines_location( string );
 
-    Getter/Setter method used to set the custom location of the ZFS data and or retrieve the ZFS dataset location.
+    Getter/Setter method used to set the custom location of the ZFS dataset and or retrieve the ZFS dataset location.
     Defaults to rool/zones/<zone-name> as the ZFS dataset.
     All ZFS datasets will have its mount point under /.    
 
