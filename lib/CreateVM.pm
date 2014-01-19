@@ -89,7 +89,8 @@ sub create_vm {
     
     chdir("$self->{virtual_machines_location}/$self->{name}");
 
-    print "Creating virtual machine... \n\tName: $self->{name}\n\tMemory: $self->{memory}MB\n\tDisk Size: $self->{disk}MB\n\t";
+    print "Creating virtual machine... \n\tName: $self->{name}\n\tMemory: $self->{memory}MB\n\t";
+    print "Disk Size: $self->{disk}MB\n\t" if $self->{_hypervisor_ostype} ne 'solaris';
     ($self->{ostype}) ? print "OS Type: $self->{ostype}\n\n\n" : print "\n\n\n";
 
 }

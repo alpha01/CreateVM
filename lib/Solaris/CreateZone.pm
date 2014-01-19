@@ -54,7 +54,7 @@ sub virtual_machines_location {
             $self->{virtual_machines_location} = "$self->{pool}/$zfs_dataset";
         }
     } else {
-        $self->{virtual_machines_location} = "$self->{pool}/zones/$self->{name}";
+        $self->{virtual_machines_location} = "$self->{pool}/$self->{name}";
     }
 
     return $self->{virtual_machines_location};
@@ -71,38 +71,41 @@ sub create_vm {
     $self->SUPER::create_vm;
     $self->_hypervisor_bin('zonecfg');
 
-    #check pool disk usage here
+    my $get_available_pool_storage_output = `zpool list -o free $self->{pool} |tail -1`;
+    $get_available_pool_storage_output =~ /([0-9]+?(.[0-9]+?))(B|K|M|G|T|P|E|Z)/;
+    my ($available_storage, $storage_unit_type) = ($1, $3);
+
+    # Will not install if their is less than 1GB available in the storage pool.
+    if ($storage_unit_type =~ /(B|K|M)/) {
+        my $verbose_shit = `zpool list $self->{pool}`;
+        croak "Not enough space available in the ZFS database to create a zone!\n$verbose_shit\n";
+    }
     
-    #if ($self->{virtual_machines_location} ne "rpool/zones/$self->{name}") {
-    #    mkdir('rpool/zones');
-    #    system("zfs create -o mountpoint=/$self->{name} $self->{virtual_machines_location}");
-    #} else {
-    #    system("zfs create -o mountpoint=/$self->{name} rpool/zones/$self->{name}");
-    #}
-
-    #if ($? != 0) {
-    #    print "Failed to create ZFS dataset!!!\n\n";
-    #    exit 1;
-    #} else {
-    #    print "Successfully create ZFS dataset.\n";
-    #    system("zfs list $self->{virtual_machines_location}");
-    #}
+    system("zfs create -o mountpoint=/$self->{name} $self->{virtual_machines_location}");
+    if ($? != 0) {
+        print "Failed to create ZFS dataset!!!\n\n";
+        exit 1;
+    } else {
+        print "Successfully created ZFS dataset.\n";
+        system("zfs list $self->{virtual_machines_location}");
+    }
     
-    #system("$self->{_hypervisor_bin} -z $self->{name} 'create; set zonepath=/$self->{name}; set autoboot=true; add capped-memory; set physical=$self->{memory}M; end'");
-    #if ($? != 0) {
-    #    print "Failed to create Solaris zone!!!\n";
-    #    exit 1;
-    #} else {
-    #    print "Successfully zone $self->{name}\n";
-    #}
+    system("$self->{_hypervisor_bin} -z $self->{name} 'create; set zonepath=/$self->{name}; set autoboot=true; add capped-memory; set physical=$self->{memory}M; end'");
+    if ($? != 0) {
+        print "Failed to create Solaris zone!!!\n";
+        exit 1;
+    } else {
+        print "Successfully created zone $self->{name}.\n";
+    }
 
-    #chomp(my $zoneadm = `which zoneadm`);
 
-    #print "Installing Solaris zone $self->{name}. This may take a few minutes to complete.\n\n\n";
-    #system("$zoneadm -z $self->{name} install");
+    chomp(my $zoneadm = `which zoneadm`);
 
-    #print "\n\nStaring Solaris zone $self->{name}\n";
-    #system("$zoneadm -z $self->{name} boot");
+    print "Installing Solaris zone $self->{name}. This may take a few minutes to complete.\n\n\n";
+    system("$zoneadm -z $self->{name} install");
+
+    print "\n\nStaring Solaris zone $self->{name}\n";
+    system("$zoneadm -z $self->{name} boot");
 
 }
 
@@ -146,10 +149,18 @@ Creates a new C<Solaris::CreateZone> object.
 
 =over 4
 
+=item pool( string );
+
+    Getter/Setter method used to set a custom ZFS storage pool on where to install the zone and or to retrive the ZFS storage pool name.
+
+=back
+
+=over 4
+    
 =item virtual_machines_location( string );
 
     Getter/Setter method used to set the custom location of the ZFS dataset and or retrieve the ZFS dataset location.
-    Defaults to rool/zones/<zone-name> as the ZFS dataset.
+    Defaults to rool/<zone-name> as the ZFS dataset.
     All ZFS datasets will have its mount point under /.    
 
 =back
@@ -162,7 +173,7 @@ Creates a new C<Solaris::CreateZone> object.
 
     Steps performed:
     # Creates the ZFS dataset.
-    zfs create -o mountpoint=/<zone-name> rpool/zones/<zone-name>
+    zfs create -o mountpoint=/<zone-name> rpool/<zone-name>
 
     # Creates the zone.
     zonecfg -z <zone-name> 'create; set zonepath=/<zone-name>; set autoboot=true; add capped-memory; set physical=<MemoryInMB>M; end'"
