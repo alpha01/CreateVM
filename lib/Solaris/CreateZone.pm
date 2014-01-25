@@ -43,15 +43,15 @@ sub pool {
 
 sub virtual_machines_location {
     my ($self, $zfs_dataset) = @_;
-
+    
     my $zfs_dataset_check;
 
     if (defined($zfs_dataset)) {
         $zfs_dataset_check = `zfs list $zfs_dataset 2>/dev/null`;
         if ($? !=0 ) {
-            croak "Custom location requires its own dataset, ZFS dataset: $zfs_dataset not found in your system\n\n";
+            croak "Custom location requires its own dataset, ZFS dataset: $zfs_dataset was not found in your system.\n\n";
         } else {
-            $self->{virtual_machines_location} = "$self->{pool}/$zfs_dataset";
+            $self->{virtual_machines_location} = `zfs list $zfs_dataset|tail -1|awk '{print \$NF}`; # get mount directly
         }
     } else {
         $self->{virtual_machines_location} = "$self->{pool}/$self->{name}";
@@ -70,6 +70,8 @@ sub create_vm {
     $self->pool;
     $self->SUPER::create_vm;
     $self->_hypervisor_bin('zonecfg');
+    
+    my $zonepath;
 
     my $get_available_pool_storage_output = `zpool list -o free $self->{pool} |tail -1`;
     $get_available_pool_storage_output =~ /([0-9]+?(.[0-9]+?))(B|K|M|G|T|P|E|Z)/;
@@ -78,19 +80,24 @@ sub create_vm {
     # Will not install if their is less than 1GB available in the storage pool.
     if ($storage_unit_type =~ /(B|K|M)/) {
         my $verbose_shit = `zpool list $self->{pool}`;
-        croak "Not enough space available in the ZFS database to create a zone!\n$verbose_shit\n";
+        croak "Not enough space available in the ZFS storage pool to create a zone!\n$verbose_shit\n";
     }
     
-    system("zfs create -o mountpoint=/$self->{name} $self->{virtual_machines_location}");
-    if ($? != 0) {
-        print "Failed to create ZFS dataset!!!\n\n";
-        exit 1;
+    if ($self->{virtual_machines_location} ne "$self->{pool}/$self->{name}") {
+        system("zfs create -o mountpoint=/$self->{name} $self->{virtual_machines_location}");
+        if ($? != 0) {
+            print "Failed to create ZFS dataset!!!\n\n";
+            exit 1;
+        } else {
+            print "Successfully created ZFS dataset.\n";
+            system("zfs list $self->{virtual_machines_location}");
+            $zonepath = "/$self->{name}";
+        }
     } else {
-        print "Successfully created ZFS dataset.\n";
-        system("zfs list $self->{virtual_machines_location}");
+        $zonepath = $self->{virtual_machines_location};
     }
     
-    system("$self->{_hypervisor_bin} -z $self->{name} 'create; set zonepath=/$self->{name}; set autoboot=true; add capped-memory; set physical=$self->{memory}M; end'");
+    system("$self->{_hypervisor_bin} -z $self->{name} 'create; set zonepath=$zonepath; set autoboot=true; add capped-memory; set physical=$self->{memory}M; end'");
     if ($? != 0) {
         print "Failed to create Solaris zone!!!\n";
         exit 1;
