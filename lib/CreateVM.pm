@@ -26,7 +26,7 @@ sub hypervisor_type {
     
     $self->_hypervisor_ostype;
 
-    if ( ($hypervisor_type =~ /^(kvm|xen|virtualbox|solaris_zone)$/)) {
+    if ( ($hypervisor_type =~ /^(kvm|xen|virtualbox|solaris_zone|lxc)$/)) {
         $self->{hypervisor_type} = $hypervisor_type;
 
     } else {
@@ -71,6 +71,9 @@ sub virtual_machines_location {
 
     } elsif ($self->{hypervisor_type} eq "xen") {
         $self->{virtual_machines_location} = "LOCATION-OF-XEN-dir";
+
+    } elsif ($self->{hypervisor_type} eq "lxc") {
+        $self->{virtual_machines_location} = "/var/lib/lxc";
     }
 
     return $self->{virtual_machines_location};
@@ -89,8 +92,9 @@ sub create_vm {
     
     chdir("$self->{virtual_machines_location}/$self->{name}");
 
-    print "Creating virtual machine... \n\tName: $self->{name}\n\tMemory: $self->{memory}MB\n\t";
-    print "Disk Size: $self->{disk}MB\n\t" if $self->{_hypervisor_ostype} ne 'solaris';
+    print "Creating virtual machine... \n\tName: $self->{name}\n";
+    print "\tMemory: $self->{memory}MB\n\t" if $self->{memory};
+    print "Disk Size: $self->{disk}MB\n\t" if ($self->{_hypervisor_ostype} ne 'solaris' && $self->{hypervisor_type} ne 'lxc');
     ($self->{ostype}) ? print "OS Type: $self->{ostype}\n\n\n" : print "\n\n\n";
 
 }

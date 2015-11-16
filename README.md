@@ -9,7 +9,8 @@ Hypervisors targeted:
  - KVM-QEMU
  - VirtualBox
  - Xen
- - Solaris Zones (not really a hypervisor, but similar)
+ - LXC (Containers)
+ - Solaris Zones (Containers)
 
 
 Eventually planning on adding support for:
